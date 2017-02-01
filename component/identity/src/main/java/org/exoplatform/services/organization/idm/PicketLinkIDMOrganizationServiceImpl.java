@@ -19,14 +19,10 @@
 
 package org.exoplatform.services.organization.idm;
 
+import java.util.List;
+
 import javax.transaction.Status;
 
-import org.exoplatform.container.ExoContainer;
-import org.exoplatform.container.component.ComponentRequestLifecycle;
-import org.exoplatform.container.component.RequestLifeCycle;
-import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.container.xml.ObjectParameter;
-import org.exoplatform.services.organization.BaseOrganizationService;
 import org.gatein.common.logging.Logger;
 import org.gatein.common.logging.LoggerFactory;
 import org.gatein.common.transaction.JTAUserTransactionLifecycleService;
@@ -35,7 +31,18 @@ import org.picketlink.idm.spi.configuration.metadata.IdentityConfigurationMetaDa
 import org.picketlink.idm.spi.configuration.metadata.IdentityStoreConfigurationMetaData;
 import org.picocontainer.Startable;
 
-import java.util.List;
+import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.component.ComponentRequestLifecycle;
+import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.container.xml.ObjectParameter;
+import org.exoplatform.services.organization.BaseOrganizationService;
+import org.exoplatform.services.organization.cache.OrganizationCacheHandler;
+import org.exoplatform.services.organization.idm.cache.CacheableGroupHandlerImpl;
+import org.exoplatform.services.organization.idm.cache.CacheableMembershipHandlerImpl;
+import org.exoplatform.services.organization.idm.cache.CacheableMembershipTypeHandlerImpl;
+import org.exoplatform.services.organization.idm.cache.CacheableUserHandlerImpl;
+import org.exoplatform.services.organization.idm.cache.CacheableUserProfileHandlerImpl;
 
 /*
  * @author <a href="mailto:boleslaw.dawidowicz at redhat.com">Boleslaw Dawidowicz</a>
@@ -60,21 +67,11 @@ public class PicketLinkIDMOrganizationServiceImpl extends BaseOrganizationServic
     private volatile boolean acceptComponentRequestCall;
 
     public PicketLinkIDMOrganizationServiceImpl(InitParams params, PicketLinkIDMService idmService,
-            JTAUserTransactionLifecycleService jtaTransactionLifecycleService) throws Exception {
-        groupDAO_ = new GroupDAOImpl(this, idmService);
-        userDAO_ = new UserDAOImpl(this, idmService);
-        userProfileDAO_ = new UserProfileDAOImpl(this, idmService);
-        membershipDAO_ = new MembershipDAOImpl(this, idmService);
-        membershipTypeDAO_ = new MembershipTypeDAOImpl(this, idmService);
-
-        idmService_ = (PicketLinkIDMServiceImpl) idmService;
-
-        this.jtaTransactionLifecycleService = jtaTransactionLifecycleService;
-
+                                                  JTAUserTransactionLifecycleService jtaTransactionLifecycleService, OrganizationCacheHandler organizationCacheHandler) throws Exception {
         if (params != null) {
             // Options
             ObjectParameter configurationParam = params.getObjectParam(CONFIGURATION_OPTION);
-
+  
             if (configurationParam != null) {
                 this.configuration = (Config) configurationParam.getObject();
             }
@@ -92,9 +89,30 @@ public class PicketLinkIDMOrganizationServiceImpl extends BaseOrganizationServic
                 this.configuration.setCountPaginatedUsers(true);
                 this.configuration.setSkipPaginationInMembershipQuery(false);
             }
-
         }
 
+        if(organizationCacheHandler != null && (this.configuration == null || this.configuration.isUseEntityCache())) {
+          groupDAO_ = new CacheableGroupHandlerImpl(organizationCacheHandler, this, idmService);
+          userDAO_ = new CacheableUserHandlerImpl(organizationCacheHandler, this, idmService);
+          userProfileDAO_ = new CacheableUserProfileHandlerImpl(organizationCacheHandler, this, idmService);
+          membershipDAO_ = new CacheableMembershipHandlerImpl(organizationCacheHandler, this, idmService);
+          membershipTypeDAO_ = new CacheableMembershipTypeHandlerImpl(organizationCacheHandler, this, idmService);
+        } else {
+          groupDAO_ = new GroupDAOImpl(this, idmService);
+          userDAO_ = new UserDAOImpl(this, idmService);
+          userProfileDAO_ = new UserProfileDAOImpl(this, idmService);
+          membershipDAO_ = new MembershipDAOImpl(this, idmService);
+          membershipTypeDAO_ = new MembershipTypeDAOImpl(this, idmService);
+        }
+
+        idmService_ = (PicketLinkIDMServiceImpl) idmService;
+
+        this.jtaTransactionLifecycleService = jtaTransactionLifecycleService;
+    }
+
+    public PicketLinkIDMOrganizationServiceImpl(InitParams params, PicketLinkIDMService idmService,
+            JTAUserTransactionLifecycleService jtaTransactionLifecycleService) throws Exception {
+      this(params, idmService, jtaTransactionLifecycleService, null);
     }
 
     public final org.picketlink.idm.api.Group getJBIDMGroup(String groupId) throws Exception {
