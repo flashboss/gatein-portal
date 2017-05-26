@@ -34,7 +34,10 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 
 import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.web.AbstractHttpServlet;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.User;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.web.security.AuthenticationRegistry;
 import org.exoplatform.web.security.security.AbstractTokenService;
@@ -154,6 +157,17 @@ public class LoginServlet extends AbstractHttpServlet {
         int status;
         if (req.getRemoteUser() == null) {
             if (username != null && password != null) {
+                try {
+                  OrganizationService organizationService =
+                                                          (OrganizationService) ExoContainerContext.getCurrentContainer()
+                                                                                                   .getComponentInstance(OrganizationService.class);
+                  User user = organizationService.getUserHandler().findUserByName(username);
+                  if (user != null) {
+                    username = user.getUserName();
+                  }
+                } catch (Exception exception) {
+                  log.error("Couldn't find user with name " + username, exception);
+                }
                 Credentials credentials = new Credentials(username, password);
                 ServletContainer container = ServletContainerFactory.getServletContainer();
 
