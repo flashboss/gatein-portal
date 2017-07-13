@@ -218,12 +218,8 @@ public class ExoFallbackIdentityStoreRepository extends FallbackIdentityStoreRep
               || mappedStore.getSupportedFeatures().isNamedRelationshipsSupported())
               ) {
                /* Begin changes */
-               try {
-                   results = mappedStore.findIdentityObject(mappedCtx, identity, relationshipType, parent, c);
-                   merged.addAll(results);
-               } catch (IdentityException e) {
-                   log.log(Level.SEVERE, "Failed to recognize identity object type" + e);
-               }
+               results = mappedStore.findIdentityObject(mappedCtx, identity, relationshipType, parent, c);
+               merged.addAll(results);
                /* End changes */
            }
         }
