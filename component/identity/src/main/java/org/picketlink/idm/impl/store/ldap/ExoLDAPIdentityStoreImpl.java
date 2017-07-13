@@ -34,6 +34,15 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
     super(id);
   }
 
+  /**
+   *  retrieve the ID of the IdentityObject from LDAP according to the customer's configuration
+   *  (prevent problems when cn is not equal to the uid attribute )
+   *
+   * @param ctx the IdentityStoreInvocationContext
+   * @param id the identity
+   * @return the IdentityObject
+   * @throws IdentityException
+   */
   @Override
   public IdentityObject findIdentityObject(IdentityStoreInvocationContext ctx, String id) throws IdentityException {
     if (log.isLoggable(Level.FINER)) {
