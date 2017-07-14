@@ -70,6 +70,7 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
       if (matches.size() == 1) {
         type = matches.iterator().next();
       } else if (matches.size() > 1) {
+        //****** Begin changes ****/
         // retrieve the UID attribute from the LDAP configuration
         for (IdentityObjectType match : matches) {
           LDAPIdentityObjectTypeConfiguration typeConfiguration = getTypeConfiguration(ctx, match);
@@ -83,6 +84,7 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
               type = match;
               break;
             }
+            //****** End changes ****/
           }
         }
       }
