@@ -115,7 +115,7 @@ public class UIUserSelector extends UIForm implements UIPopupComponent {
     @SuppressWarnings("unchecked")
     public List<User> getData() throws Exception {
         if (getMulti()) {
-            for (Object obj : getIteratorCurrentPageData()) {
+            for (Object obj : uiIterator_.getCurrentPageData()) {
                 User user = (User) obj;
                 UIFormCheckBoxInput<Boolean> uiFormCheckBoxInput = getUIFormCheckBoxInput(user.getUserName());
                 if (uiFormCheckBoxInput == null) {
@@ -126,7 +126,7 @@ public class UIUserSelector extends UIForm implements UIPopupComponent {
                 uiFormCheckBoxInput.setChecked(uiIterator_.isSelectedItem(user.getUserName()));
             }
         }
-        return new ArrayList<User>(getIteratorCurrentPageData());
+        return new ArrayList<User>(uiIterator_.getCurrentPageData());
     }
 
     public String getSelectedUsers() {
@@ -172,10 +172,6 @@ public class UIUserSelector extends UIForm implements UIPopupComponent {
         options.add(new SelectItemOption<String>(FIRST_NAME, FIRST_NAME));
         options.add(new SelectItemOption<String>(EMAIL, EMAIL));
         return options;
-    }
-
-    private List getIteratorCurrentPageData() throws Exception {
-        return lazyPageList.currentPage();
     }
 
     public String[] getActions() {
