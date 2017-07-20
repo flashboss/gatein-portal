@@ -80,7 +80,8 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
           if (nameAttribute != null) {
             String name = nameAttribute.get().toString();
             LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
-            if (entry != null && Tools.dnEquals(entry.getDn(), dn)) {
+            String filter = getTypeConfiguration(ctx, match).getEntrySearchFilter();
+            if ((entry != null && Tools.dnEquals(entry.getDn(), dn)) || filter != null) {
               type = match;
               break;
             }
