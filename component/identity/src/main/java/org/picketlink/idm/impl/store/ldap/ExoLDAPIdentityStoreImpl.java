@@ -14,6 +14,7 @@ import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.ldap.LdapContext;
 import java.util.HashSet;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.logging.Level;
@@ -81,7 +82,11 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
             String name = nameAttribute.get().toString();
             LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
             String filter = getTypeConfiguration(ctx, match).getEntrySearchFilter();
-            if ((entry != null && Tools.dnEquals(entry.getDn(), dn)) || filter != null) {
+            String[] entryCtxs = getTypeConfiguration(ctx, match).getCtxDNs();
+            String scope = getTypeConfiguration(ctx, match).getEntrySearchScope();
+            Object[] filterArgs = {name};
+            List<SerializableSearchResult> searchResult = searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[]{getTypeConfiguration(ctx, match).getIdAttributeName()}, scope, null);
+            if ((entry != null && Tools.dnEquals(entry.getDn(), dn)) || (filter != null && searchResult.size() == 0)) {
               type = match;
               break;
             }
