@@ -73,24 +73,32 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
       } else if (matches.size() > 1) {
         //****** Begin changes ****/
         // retrieve the UID attribute from the LDAP configuration
+        List<SerializableSearchResult> searchResult = null;
         for (IdentityObjectType match : matches) {
           LDAPIdentityObjectTypeConfiguration typeConfiguration = getTypeConfiguration(ctx, match);
           Name jndiName = new CompositeName().add(dn);
           Attributes attrs = ldapContext.getAttributes(jndiName);
           Attribute nameAttribute = attrs.get(typeConfiguration.getIdAttributeName());
+          String filter = getTypeConfiguration(ctx, match).getEntrySearchFilter();
+          String[] entryCtxs = getTypeConfiguration(ctx, match).getCtxDNs();
+          String scope = getTypeConfiguration(ctx, match).getEntrySearchScope();
           if (nameAttribute != null) {
             String name = nameAttribute.get().toString();
-            LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
-            String filter = getTypeConfiguration(ctx, match).getEntrySearchFilter();
-            String[] entryCtxs = getTypeConfiguration(ctx, match).getCtxDNs();
-            String scope = getTypeConfiguration(ctx, match).getEntrySearchScope();
             Object[] filterArgs = {name};
-            List<SerializableSearchResult> searchResult = searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[]{getTypeConfiguration(ctx, match).getIdAttributeName()}, scope, null);
-            if ((entry != null && Tools.dnEquals(entry.getDn(), dn)) || (filter != null && searchResult.size() == 0)) {
-              type = match;
-              break;
+            if (filter != null) {
+              searchResult = this.searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[] { getTypeConfiguration(ctx, match).getIdAttributeName() }, scope,null);
+              if (searchResult.size() == 0) {
+                type = match;
+                break;
+              } else {
+                LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
+                if ((entry != null && Tools.dnEquals(entry.getDn(), dn))) {
+                  type = match;
+                  break;
+                }
+              }
             }
-            //****** End changes ****/
+            // ****** End changes ****/
           }
         }
       }
