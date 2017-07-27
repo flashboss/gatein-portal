@@ -1,24 +1,26 @@
 package org.picketlink.idm.impl.store.ldap;
 
 import org.picketlink.idm.common.exception.IdentityException;
+import org.picketlink.idm.impl.NotYetImplementedException;
 import org.picketlink.idm.impl.helper.Tools;
 import org.picketlink.idm.impl.model.ldap.LDAPIdentityObjectImpl;
 import org.picketlink.idm.spi.model.IdentityObject;
+import org.picketlink.idm.spi.model.IdentityObjectRelationshipType;
 import org.picketlink.idm.spi.model.IdentityObjectType;
+import org.picketlink.idm.spi.search.IdentityObjectSearchCriteria;
 import org.picketlink.idm.spi.store.IdentityStoreInvocationContext;
 
 import javax.naming.CompositeName;
 import javax.naming.Name;
+import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.ldap.LdapContext;
-import java.util.HashSet;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * extends the class LDAPIdentityStoreImpl from PicketLink Idm in order to
@@ -87,7 +89,7 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
             Object[] filterArgs = { name };
             if (filter != null) {
               searchResult = this.searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[] { getTypeConfiguration(ctx, match).getIdAttributeName() }, scope,null);
-              if (searchResult.size() >= 0) {
+              if (searchResult.size() > 0) {
                 type = match;
                 break;
               }
@@ -140,6 +142,141 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
     return null;
   }
 
+  /**
+   * To fix the exception encountered when trying to retrieve filtered groups, we verify if findIdentityObject() returns null or not
+   *
+   * @param ctx the IdentityStoreInvocationContext
+   * @param identity the IdentityObject
+   * @param relationshipType the IdentityObjectRelationshipType
+   * @param excludes the excluded IdentityObjectSearchCriteria
+   * @param parent if has parent returns true, else return false
+   * @param criteria the IdentityObjectSearchCriteria
+   * @return IdentityObject collection
+   * @throws IdentityException
+   */
+  @Override
+  public Collection<IdentityObject> findIdentityObject(IdentityStoreInvocationContext ctx, IdentityObject identity, IdentityObjectRelationshipType relationshipType, Collection<IdentityObjectType> excludes, boolean parent, IdentityObjectSearchCriteria criteria) throws IdentityException {
+    if (log.isLoggable(Level.FINER)) {
+      Tools.logMethodIn(log, Level.FINER,"findIdentityObject", new Object[] { "IdentityObject", identity, "IdentityObjectRelationshipType", relationshipType, "parent", parent, "IdentityObjectSearchCriteria", criteria });
+    }
+    if (relationshipType != null && !relationshipType.getName().equals(MEMBERSHIP_TYPE)) {
+      throw new IdentityException("This store implementation supports only '" + MEMBERSHIP_TYPE + "' relationship type");
+    }
+    LDAPIdentityObjectImpl ldapIO = getSafeLDAPIO(ctx, identity);
+    LDAPIdentityObjectTypeConfiguration typeConfig = getTypeConfiguration(ctx, identity.getIdentityType());
+    LdapContext ldapContext = getLDAPContext(ctx);
+    List<IdentityObject> objects = new LinkedList<IdentityObject>();
+    try {
+      // If parent simply look for all its members
+      if (parent) {
+        if (typeConfig.getParentMembershipAttributeName() != null) {
+          Name jndiName = new CompositeName().add(ldapIO.getDn());
+          Attributes attrs = ldapContext.getAttributes(jndiName);
+          Attribute member = attrs.get(typeConfig.getParentMembershipAttributeName());
+          if (member != null) {
+            NamingEnumeration memberValues = member.getAll();
+            while (memberValues.hasMoreElements()) {
+              String memberRef = memberValues.nextElement().toString();
+              // Ignore placeholder value in memberships
+              String placeholder = typeConfig.getParentMembershipAttributePlaceholder();
+              if (placeholder != null && memberRef.equalsIgnoreCase(placeholder)) {
+                continue;
+              }
+              if (typeConfig.isParentMembershipAttributeDN()) {
+                if (criteria != null && criteria.getFilter() != null) {
+                  String name = Tools.stripDnToName(memberRef);
+                  String regex = Tools.wildcardToRegex(criteria.getFilter());
+                  if (Pattern.matches(regex, name)) {
+                    objects.add(findIdentityObject(ctx, memberRef));
+                  }
+                } else {
+                  // ****** Begin changes ****/
+                  if (findIdentityObject(ctx, memberRef) != null) {
+                    objects.add(findIdentityObject(ctx, memberRef));
+                  }
+                  // ****** End changes ****/
+                }
+              } else {
+                // TODO: if relationships are not refered with DNs and only
+                // names its not possible to map
+                // TODO: them to proper IdentityType and keep name uniqnes per
+                // type. Workaround needed
+                throw new NotYetImplementedException("LDAP limitation. If relationship targets are not refered with FQDNs "
+                    + "and only names, it's not possible to map them to proper IdentityType and keep name uniqnes per type. "
+                    + "Workaround needed");
+              }
+              // break;
+            }
+          }
+        } else {
+          objects.addAll(findRelatedIdentityObjects(ctx, identity, ldapIO, criteria, false));
+        }
+        // if not parent then all parent entries need to be found
+      } else {
+        if (typeConfig.getChildMembershipAttributeName() == null) {
+          objects.addAll(findRelatedIdentityObjects(ctx, identity, ldapIO, criteria, true));
+        } else {
+          // Escape JNDI special characters
+          Name jndiName = new CompositeName().add(ldapIO.getDn());
+          Attributes attrs = ldapContext.getAttributes(jndiName);
+          Attribute member = attrs.get(typeConfig.getChildMembershipAttributeName());
+          if (member != null) {
+            NamingEnumeration memberValues = member.getAll();
+            while (memberValues.hasMoreElements()) {
+              String memberRef = memberValues.nextElement().toString();
+              if (typeConfig.isChildMembershipAttributeDN()) {
+                // TODO: use direct LDAP query instead of other find method and
+                // add attributesFilter
+                if (criteria != null && criteria.getFilter() != null) {
+                  String name = Tools.stripDnToName(memberRef);
+                  String regex = Tools.wildcardToRegex(criteria.getFilter());
+                  if (Pattern.matches(regex, name)) {
+                    objects.add(findIdentityObject(ctx, memberRef));
+                  }
+                } else {
+                  objects.add(findIdentityObject(ctx, memberRef));
+                }
+              } else {
+                // TODO: if relationships are not refered with DNs and only
+                // names its not possible to map
+                // TODO: them to proper IdentityType and keep name uniqnes per
+                // type. Workaround needed
+                throw new NotYetImplementedException("LDAP limitation. If relationship targets are not refered with FQDNs "
+                    + "and only names, it's not possible to map them to proper IdentityType and keep name uniqnes per type. "
+                    + "Workaround needed");
+              }
+              // break;
+            }
+          }
+        }
+      }
+    } catch (NamingException e) {
+      if (log.isLoggable(Level.FINER)) {
+        log.log(Level.FINER, "Exception occurred: ", e);
+      }
+      throw new IdentityException("Failed to resolve relationship", e);
+    } finally {
+      try {
+        ldapContext.close();
+      } catch (NamingException e) {
+        if (log.isLoggable(Level.FINER)) {
+          log.log(Level.FINER, "Exception occurred: ", e);
+        }
+        throw new IdentityException("Failed to close LDAP connection", e);
+      }
+    }
+    if (criteria != null && criteria.isPaged()) {
+      objects = cutPageFromResults(objects, criteria);
+    }
+    if (criteria != null && criteria.isSorted()) {
+      sortByName(objects, criteria.isAscending());
+    }
+    if (log.isLoggable(Level.FINER)) {
+      Tools.logMethodOut(log, Level.FINER, "findIdentityObject", objects);
+    }
+    return objects;
+  }
+
   private LdapContext getLDAPContext(IdentityStoreInvocationContext ctx) throws IdentityException {
     LdapContext ldapContext = null;
     try {
@@ -166,6 +303,55 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
 
   private LDAPIdentityStoreConfiguration getConfiguration(IdentityStoreInvocationContext ctx) throws IdentityException {
     return configuration;
+  }
+
+  private void sortByName(List<IdentityObject> objects, final boolean ascending) {
+    Collections.sort(objects, new Comparator<IdentityObject>() {
+      public int compare(IdentityObject o1, IdentityObject o2) {
+        if (ascending) {
+          return o1.getName().compareTo(o2.getName());
+        } else {
+          return o2.getName().compareTo(o1.getName());
+        }
+      }
+    });
+  }
+  // TODO: dummy and inefficient temporary workaround. Need to be implemented
+  // with ldap request control
+  private <T> List<T> cutPageFromResults(List<T> objects, IdentityObjectSearchCriteria criteria) {
+    List<T> results = new LinkedList<T>();
+    if (criteria.getMaxResults() == 0) {
+      for (int i = criteria.getFirstResult(); i < objects.size(); i++) {
+        if (i < objects.size()) {
+          results.add(objects.get(i));
+        }
+      }
+    } else {
+      for (int i = criteria.getFirstResult(); i < criteria.getFirstResult() + criteria.getMaxResults(); i++) {
+        if (i < objects.size()) {
+          results.add(objects.get(i));
+        }
+      }
+    }
+    return results;
+  }
+
+  private LDAPIdentityObjectImpl getSafeLDAPIO(IdentityStoreInvocationContext ctx, IdentityObject io) throws IdentityException {
+    if (io == null) {
+      throw new IllegalArgumentException("IdentityObject is null");
+    }
+    if (io instanceof LDAPIdentityObjectImpl) {
+      return (LDAPIdentityObjectImpl) io;
+    } else {
+      try {
+        return (LDAPIdentityObjectImpl) findIdentityObject(ctx, io.getName(), io.getIdentityType());
+      } catch (IdentityException e) {
+        if (log.isLoggable(Level.FINER)) {
+          log.finer("Failed to find IdentityObject in LDAP: " + io);
+        }
+        throw new IdentityException("Provided IdentityObject is not present in the store. Cannot operate on not stored objects.", e);
+      }
+    }
   }
 
 }
