@@ -84,18 +84,24 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
           String scope = getTypeConfiguration(ctx, match).getEntrySearchScope();
           if (nameAttribute != null) {
             String name = nameAttribute.get().toString();
-            Object[] filterArgs = {name};
+            Object[] filterArgs = { name };
             if (filter != null) {
               searchResult = this.searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[] { getTypeConfiguration(ctx, match).getIdAttributeName() }, scope,null);
               if (searchResult.size() == 0) {
                 type = match;
                 break;
               } else {
-                LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
-                if ((entry != null && Tools.dnEquals(entry.getDn(), dn))) {
+                LDAPIdentityObjectImpl ldapEntry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
+                if (ldapEntry != null && Tools.dnEquals(ldapEntry.getDn(), dn)) {
                   type = match;
                   break;
                 }
+              }
+            } else {
+              LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
+              if (entry != null && Tools.dnEquals(entry.getDn(), dn)) {
+                type = match;
+                break;
               }
             }
             // ****** End changes ****/
