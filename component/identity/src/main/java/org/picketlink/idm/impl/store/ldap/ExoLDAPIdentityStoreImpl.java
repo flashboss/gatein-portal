@@ -100,13 +100,13 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
                 break;
               }
             }
-            // ****** End changes ****/
           }
         }
       }
       if (type == null) {
-        throw new IdentityException("Cannot recognize identity object type by its DN: " + dn);
+        return null;
       }
+      // ****** End changes ****/
       // Grab entry
       Name jndiName = new CompositeName().add(dn);
       Attributes attrs = ldapContext.getAttributes(jndiName);
@@ -187,10 +187,12 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
                   String name = Tools.stripDnToName(memberRef);
                   String regex = Tools.wildcardToRegex(criteria.getFilter());
                   if (Pattern.matches(regex, name)) {
-                    objects.add(findIdentityObject(ctx, memberRef));
+                    // ****** Begin changes ****/
+                    if (findIdentityObject(ctx, memberRef) != null) {
+                      objects.add(findIdentityObject(ctx, memberRef));
+                    }
                   }
                 } else {
-                  // ****** Begin changes ****/
                   if (findIdentityObject(ctx, memberRef) != null) {
                     objects.add(findIdentityObject(ctx, memberRef));
                   }
