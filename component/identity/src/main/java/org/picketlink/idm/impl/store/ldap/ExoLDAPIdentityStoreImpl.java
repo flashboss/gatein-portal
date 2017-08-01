@@ -183,21 +183,19 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
                 continue;
               }
               if (typeConfig.isParentMembershipAttributeDN()) {
-                if (criteria != null && criteria.getFilter() != null) {
-                  String name = Tools.stripDnToName(memberRef);
-                  String regex = Tools.wildcardToRegex(criteria.getFilter());
-                  if (Pattern.matches(regex, name)) {
-                    // ****** Begin changes ****/
-                    if (findIdentityObject(ctx, memberRef) != null) {
+                // ****** Begin changes ****/
+                if (findIdentityObject(ctx, memberRef) != null) {
+                  if (criteria != null && criteria.getFilter() != null) {
+                    String name = Tools.stripDnToName(memberRef);
+                    String regex = Tools.wildcardToRegex(criteria.getFilter());
+                    if (Pattern.matches(regex, name)) {
                       objects.add(findIdentityObject(ctx, memberRef));
                     }
-                  }
-                } else {
-                  if (findIdentityObject(ctx, memberRef) != null) {
+                  } else {
                     objects.add(findIdentityObject(ctx, memberRef));
                   }
-                  // ****** End changes ****/
                 }
+                // ****** End changes ****/
               } else {
                 // TODO: if relationships are not refered with DNs and only
                 // names its not possible to map
