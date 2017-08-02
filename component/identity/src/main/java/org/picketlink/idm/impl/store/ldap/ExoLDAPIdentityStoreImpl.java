@@ -76,30 +76,31 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
         //****** Begin changes ****/
         // retrieve the UID attribute from the LDAP configuration
         List<SerializableSearchResult> searchResult = null;
-        for (IdentityObjectType match : matches) {
-          LDAPIdentityObjectTypeConfiguration typeConfiguration = getTypeConfiguration(ctx, match);
+        for (IdentityObjectType possibleTypeMatch : matches) {
+          LDAPIdentityObjectTypeConfiguration typeConfiguration = getTypeConfiguration(ctx, possibleTypeMatch);
           Name jndiName = new CompositeName().add(dn);
           Attributes attrs = ldapContext.getAttributes(jndiName);
           String idAttributeName = typeConfiguration.getIdAttributeName();
           Attribute nameAttribute = attrs.get(idAttributeName);
-          String filter = getTypeConfiguration(ctx, match).getEntrySearchFilter();
-          String[] entryCtxs = getTypeConfiguration(ctx, match).getCtxDNs();
-          String scope = getTypeConfiguration(ctx, match).getEntrySearchScope();
-          if (nameAttribute != null) {
-            String name = nameAttribute.get().toString();
-            Object[] filterArgs = { name };
-            if (filter != null) {
-              searchResult = this.searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[] {idAttributeName}, scope,null);
-              if (searchResult.size() > 0) {
-                type = match;
-                break;
-              }
-            } else {
-              LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, match);
-              if (entry != null && Tools.dnEquals(entry.getDn(), dn)) {
-                type = match;
-                break;
-              }
+          if (nameAttribute == null) {
+            continue;
+          }
+          String filter = getTypeConfiguration(ctx, possibleTypeMatch).getEntrySearchFilter();
+          String[] entryCtxs = getTypeConfiguration(ctx, possibleTypeMatch).getCtxDNs();
+          String scope = getTypeConfiguration(ctx, possibleTypeMatch).getEntrySearchScope();
+          String name = nameAttribute.get().toString();
+          Object[] filterArgs = { name };
+          if (filter != null) {
+            searchResult = this.searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[] { idAttributeName }, scope,null);
+            if (searchResult.size() > 0) {
+              type = possibleTypeMatch;
+              break;
+            }
+          } else {
+            LDAPIdentityObjectImpl entry = (LDAPIdentityObjectImpl) this.findIdentityObject(ctx, name, possibleTypeMatch);
+            if (entry != null && Tools.dnEquals(entry.getDn(), dn)) {
+              type = possibleTypeMatch;
+              break;
             }
           }
         }
