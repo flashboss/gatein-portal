@@ -80,7 +80,8 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
           LDAPIdentityObjectTypeConfiguration typeConfiguration = getTypeConfiguration(ctx, match);
           Name jndiName = new CompositeName().add(dn);
           Attributes attrs = ldapContext.getAttributes(jndiName);
-          Attribute nameAttribute = attrs.get(typeConfiguration.getIdAttributeName());
+          String idAttributeName = typeConfiguration.getIdAttributeName();
+          Attribute nameAttribute = attrs.get(idAttributeName);
           String filter = getTypeConfiguration(ctx, match).getEntrySearchFilter();
           String[] entryCtxs = getTypeConfiguration(ctx, match).getCtxDNs();
           String scope = getTypeConfiguration(ctx, match).getEntrySearchScope();
@@ -88,7 +89,7 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
             String name = nameAttribute.get().toString();
             Object[] filterArgs = { name };
             if (filter != null) {
-              searchResult = this.searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[] { getTypeConfiguration(ctx, match).getIdAttributeName() }, scope,null);
+              searchResult = this.searchIdentityObjects(ctx, entryCtxs, filter, filterArgs, new String[] {idAttributeName}, scope,null);
               if (searchResult.size() > 0) {
                 type = match;
                 break;
@@ -184,15 +185,16 @@ public class ExoLDAPIdentityStoreImpl extends LDAPIdentityStoreImpl {
               }
               if (typeConfig.isParentMembershipAttributeDN()) {
                 // ****** Begin changes ****/
-                if (findIdentityObject(ctx, memberRef) != null) {
+                IdentityObject identityObject = findIdentityObject(ctx, memberRef);
+                if (identityObject != null) {
                   if (criteria != null && criteria.getFilter() != null) {
                     String name = Tools.stripDnToName(memberRef);
                     String regex = Tools.wildcardToRegex(criteria.getFilter());
                     if (Pattern.matches(regex, name)) {
-                      objects.add(findIdentityObject(ctx, memberRef));
+                      objects.add(identityObject);
                     }
                   } else {
-                    objects.add(findIdentityObject(ctx, memberRef));
+                    objects.add(identityObject);
                   }
                 }
                 // ****** End changes ****/
