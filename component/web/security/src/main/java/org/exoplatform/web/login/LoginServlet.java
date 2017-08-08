@@ -33,10 +33,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.web.AbstractHttpServlet;
 import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.Query;
 import org.exoplatform.services.organization.User;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.web.security.AuthenticationRegistry;
@@ -161,9 +163,11 @@ public class LoginServlet extends AbstractHttpServlet {
                   OrganizationService organizationService =
                                                           (OrganizationService) ExoContainerContext.getCurrentContainer()
                                                                                                    .getComponentInstance(OrganizationService.class);
-                  User user = organizationService.getUserHandler().findUserByName(username);
-                  if (user != null) {
-                    username = user.getUserName();
+                  Query query = new Query();
+                  query.setUserName(username);
+                  ListAccess<User> users = organizationService.getUserHandler().findUsersByQuery(query);
+                  if (users.getSize() == 1) {
+                    username = users.load(0, 1)[0].getUserName();
                   }
                 } catch (Exception exception) {
                   log.error("Couldn't find user with name " + username, exception);
