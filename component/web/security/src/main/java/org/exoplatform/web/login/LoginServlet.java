@@ -173,7 +173,7 @@ public class LoginServlet extends AbstractHttpServlet {
                       }
                   }
                 } catch (Exception exception) {
-                  log.error("Couldn't find user with name " + username, exception);
+                  log.warn("Error while retrieving user " + username + " from IDM stores " , exception);
                 }
                 Credentials credentials = new Credentials(username, password);
                 ServletContainer container = ServletContainerFactory.getServletContainer();
