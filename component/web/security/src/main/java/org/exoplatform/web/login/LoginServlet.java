@@ -167,7 +167,10 @@ public class LoginServlet extends AbstractHttpServlet {
                   query.setUserName(username);
                   ListAccess<User> users = organizationService.getUserHandler().findUsersByQuery(query);
                   if (users.getSize() == 1) {
-                    username = users.load(0, 1)[0].getUserName();
+                      String loadedUsername  = users.load(0, 1)[0].getUserName();
+                      if (username.equalsIgnoreCase(loadedUsername)) {
+                          username = loadedUsername;
+                      }
                   }
                 } catch (Exception exception) {
                   log.error("Couldn't find user with name " + username, exception);
