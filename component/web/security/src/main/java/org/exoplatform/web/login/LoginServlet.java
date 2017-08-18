@@ -166,10 +166,15 @@ public class LoginServlet extends AbstractHttpServlet {
                   Query query = new Query();
                   query.setUserName(username);
                   ListAccess<User> users = organizationService.getUserHandler().findUsersByQuery(query);
-                  if (users.getSize() == 1) {
-                      String loadedUsername  = users.load(0, 1)[0].getUserName();
-                      if (username.equalsIgnoreCase(loadedUsername)) {
-                          username = loadedUsername;
+                  if (users.getSize() >= 1) {
+                      String loadedUsername  = "";
+                      User[] listusers = users.load(0, users.getSize());
+                      for(User user : listusers){
+                          loadedUsername = user.getUserName();
+                          if (username.equalsIgnoreCase(loadedUsername)) {
+                              username = loadedUsername;
+                          }
+                          break;
                       }
                   }
                 } catch (Exception exception) {
