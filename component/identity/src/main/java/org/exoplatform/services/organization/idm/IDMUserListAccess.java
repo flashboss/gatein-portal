@@ -160,25 +160,23 @@ public class IDMUserListAccess implements ListAccess<User>, Serializable {
         if (size < 0) {
             if (fullResults != null) {
                 result = fullResults.size();
-            } else if (countAll) {
+            } else {
+                userQueryBuilder.page(0, 0);
+                UserQuery query = userQueryBuilder.sort(SortOrder.ASCENDING).createQuery();
+                fullResults = getIDMService().getIdentitySession().list(query);
+                result = fullResults.size();
+                if (countAll) {
                 /*
                     wait for PersistenceManager.getUserCount(true)
                     see https://community.jboss.org/wiki/DisabledUser
                 */
 //             result = getIDMService().getIdentitySession().getPersistenceManager().getUserCount(enabledOnly);
-                result = getIDMService().getIdentitySession().getPersistenceManager().getUserCount();
-            } else {
-              userQueryBuilder.page(0, 0);
-              UserQuery query = userQueryBuilder.sort(SortOrder.ASCENDING).createQuery();
-              fullResults = getIDMService().getIdentitySession().list(query);
-
-              if ((this.userStatus == UserStatus.ENABLED || this.userStatus == UserStatus.DISABLED) && !isDBOnly) {
-                result = filterUserByStatus(fullResults, this.userStatus, 0, fullResults.size()).size();
-              } else {
-                result = fullResults.size();
-              }
+                } else {
+                    if ((this.userStatus == UserStatus.ENABLED || this.userStatus == UserStatus.DISABLED) && !isDBOnly) {
+                        result = filterUserByStatus(fullResults, this.userStatus, 0, fullResults.size()).size();
+                    }
+                }
             }
-
             size = result;
         } else {
             result = size;
