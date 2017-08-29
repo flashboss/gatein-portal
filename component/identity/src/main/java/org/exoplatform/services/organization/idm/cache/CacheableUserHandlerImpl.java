@@ -32,91 +32,106 @@ import org.exoplatform.services.organization.idm.PicketLinkIDMOrganizationServic
 import org.exoplatform.services.organization.idm.PicketLinkIDMService;
 import org.exoplatform.services.organization.idm.UserDAOImpl;
 
-public class CacheableUserHandlerImpl extends UserDAOImpl
-{
+public class CacheableUserHandlerImpl extends UserDAOImpl {
 
-   private final ExoCache<String, User> userCache;
+  private final ExoCache<String, User>             userCache;
 
-   private final ExoCache<String, UserProfile> userProfileCache;
+  private final ExoCache<String, UserProfile>      userProfileCache;
 
-   private final ExoCache<Serializable, Membership> membershipCache;
+  private final ExoCache<Serializable, Membership> membershipCache;
 
-   @SuppressWarnings("unchecked")
-  public CacheableUserHandlerImpl(OrganizationCacheHandler organizationCacheHandler, PicketLinkIDMOrganizationServiceImpl orgService, PicketLinkIDMService idmService) {
-      super(orgService, idmService);
-      this.userCache = organizationCacheHandler.getUserCache();
-      this.userProfileCache = organizationCacheHandler.getUserProfileCache();
-      this.membershipCache = organizationCacheHandler.getMembershipCache();
-   }
+  private final ThreadLocal<Boolean>               disableCacheInThread = new ThreadLocal<>();
 
-   /**
-    * {@inheritDoc}
-    */
-   public User removeUser(String userName, boolean broadcast) throws Exception
-   {
-      User user = super.removeUser(userName, broadcast);
-      if (user != null)
-      {
-         userCache.remove(userName);
-         userProfileCache.remove(userName);
+  @SuppressWarnings("unchecked")
+  public CacheableUserHandlerImpl(OrganizationCacheHandler organizationCacheHandler,
+                                  PicketLinkIDMOrganizationServiceImpl orgService,
+                                  PicketLinkIDMService idmService) {
+    super(orgService, idmService);
+    this.userCache = organizationCacheHandler.getUserCache();
+    this.userProfileCache = organizationCacheHandler.getUserProfileCache();
+    this.membershipCache = organizationCacheHandler.getMembershipCache();
+  }
 
-         List<? extends Membership> memberships = membershipCache.getCachedObjects();
-         for (Membership membership : memberships)
-         {
-            if (membership.getUserName().equals(userName))
-            {
-               membershipCache.remove(membership.getId());
-               membershipCache.remove(new MembershipCacheKey(membership));
-            }
-         }
+  /**
+   * {@inheritDoc}
+   */
+  public User removeUser(String userName, boolean broadcast) throws Exception {
+    User user = null;
+    disableCacheInThread.set(true);
+    try {
+      user = super.removeUser(userName, broadcast);
+
+      userCache.remove(userName);
+      userProfileCache.remove(userName);
+
+      if (user != null) {
+        List<? extends Membership> memberships = membershipCache.getCachedObjects();
+        for (Membership membership : memberships) {
+          if (membership.getUserName().equals(userName)) {
+            membershipCache.remove(membership.getId());
+            membershipCache.remove(new MembershipCacheKey(membership));
+          }
+        }
       }
+    } finally {
+      disableCacheInThread.set(false);
+    }
+    return user;
+  }
 
-      return user;
-   }
+  /**
+   * {@inheritDoc}
+   */
+  public void saveUser(User user, boolean broadcast) throws Exception {
+    super.saveUser(user, broadcast);
+    cacheUser(user);
+  }
 
-   /**
-    * {@inheritDoc}
-    */
-   public void saveUser(User user, boolean broadcast) throws Exception
-   {
-      super.saveUser(user, broadcast);
-      userCache.put(user.getUserName(), user);
-   }
+  /**
+   * {@inheritDoc}
+   */
+  public void createUser(User user, boolean broadcast) throws Exception {
+    super.createUser(user, broadcast);
+    cacheUser(user);
+  }
 
-   /**
-    * {@inheritDoc}
-    */
-   public void createUser(User user, boolean broadcast) throws Exception
-   {
-     super.createUser(user, broadcast);
-     userCache.put(user.getUserName(), user);
-   }
+  /**
+   * {@inheritDoc}
+   */
+  public User setEnabled(String userName, boolean enabled, boolean broadcast) throws Exception {
+    User result = super.setEnabled(userName, enabled, broadcast);
+    if (result != null) {
+      cacheUser(result);
+    }
+    return result;
+  }
 
-   /**
-    * {@inheritDoc}
-    */
-   public User setEnabled(String userName, boolean enabled, boolean broadcast) throws Exception
-   {
-      User result = super.setEnabled(userName, enabled, broadcast);
-      if (result != null)
-      {
-         userCache.put(result.getUserName(), result);
+  /**
+   * {@inheritDoc}
+   */
+  public User findUserByName(String userName, UserStatus status) throws Exception {
+    User user = null;
+    if (disableCacheInThread.get() == null || !disableCacheInThread.get()) {
+      user = userCache.get(userName);
+    }
+
+    if (user == null) {
+      user = super.findUserByName(userName, status);
+      if (user != null) {
+        cacheUser(user);
       }
-      return result;
-   }
+    }
 
-   /**
-    * {@inheritDoc}
-    */
-   public User findUserByName(String userName, UserStatus status) throws Exception
-   {
-      User user = userCache.get(userName);
-      if (user == null) {
-        user = super.findUserByName(userName, status);
-        if (user != null)
-           userCache.put(userName, user);
-      }
+    return user == null ? null : (status.matches(user.isEnabled()) ? (User) SerializationUtils.clone((Serializable) user) : null);
+  }
 
-      return user == null ? null : (status.matches(user.isEnabled()) ? (User) SerializationUtils.clone((Serializable) user) : null);
-   }
+  public void clearCache() {
+    userCache.clearCache();
+  }
+
+  private void cacheUser(User user) {
+    user = (User) SerializationUtils.clone((Serializable) user);
+    userCache.put(user.getUserName(), user);
+  }
+
 }

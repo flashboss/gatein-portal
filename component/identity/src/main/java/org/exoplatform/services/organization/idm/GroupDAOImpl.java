@@ -187,7 +187,7 @@ public class GroupDAOImpl extends AbstractDAOImpl implements GroupHandler {
 
         if (jbidGroup == null) {
             //As test case suppose, api should throw exception here
-            throw new Exception("Group is not exists");
+            throw new Exception("Group " + group + " is not exists");
             //return group;
         }
 

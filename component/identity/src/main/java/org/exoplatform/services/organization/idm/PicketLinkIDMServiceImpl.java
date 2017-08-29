@@ -87,9 +87,6 @@ public class PicketLinkIDMServiceImpl implements PicketLinkIDMService, Startable
 
     private InfinispanCacheFactory infinispanCacheFactory = InfinispanCacheFactory.getInstance();
 
-    private PicketLinkIDMServiceImpl() {
-    }
-
     public PicketLinkIDMServiceImpl(ExoContainerContext exoContainerContext, InitParams initParams,
             HibernateService hibernateService, ConfigurationManager confManager, PicketLinkIDMCacheService picketLinkIDMCache,
             InitialContextInitializer dependency) throws Exception {

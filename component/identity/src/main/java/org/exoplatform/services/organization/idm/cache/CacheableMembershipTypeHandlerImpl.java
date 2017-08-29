@@ -20,6 +20,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.commons.lang.SerializationUtils;
+
 import org.exoplatform.services.cache.ExoCache;
 import org.exoplatform.services.organization.Membership;
 import org.exoplatform.services.organization.MembershipType;
@@ -28,12 +30,15 @@ import org.exoplatform.services.organization.cache.OrganizationCacheHandler;
 import org.exoplatform.services.organization.idm.MembershipTypeDAOImpl;
 import org.exoplatform.services.organization.idm.PicketLinkIDMOrganizationServiceImpl;
 import org.exoplatform.services.organization.idm.PicketLinkIDMService;
+import org.exoplatform.services.organization.impl.MembershipTypeImpl;
 
 public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
 
-  private final ExoCache<String, MembershipType> membershipTypeCache;
+  private final ExoCache<String, MembershipType>   membershipTypeCache;
 
   private final ExoCache<Serializable, Membership> membershipCache;
+
+  private final ThreadLocal<Boolean>               disableCacheInThread = new ThreadLocal<>();
 
   @SuppressWarnings("unchecked")
   public CacheableMembershipTypeHandlerImpl(OrganizationCacheHandler organizationCacheHandler,
@@ -48,17 +53,20 @@ public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
    * {@inheritDoc}
    */
   public MembershipType findMembershipType(String name) throws Exception {
-    MembershipType membershipType = (MembershipType) membershipTypeCache.get(name);
-    if (membershipType != null) {
-      return membershipType;
+    MembershipType membershipType = null;
+    if (disableCacheInThread.get() == null || !disableCacheInThread.get()) {
+      membershipType = (MembershipType) membershipTypeCache.get(name);
+      if (membershipType != null) {
+        return membershipType;
+      }
     }
 
     membershipType = super.findMembershipType(name);
     if (membershipType != null) {
-      membershipTypeCache.put(name, membershipType);
+      cacheMembershipType(membershipType);
     }
 
-    return membershipType;
+    return membershipType == null ? membershipType :((MembershipTypeImpl) membershipType).clone();
   }
 
   /**
@@ -68,7 +76,7 @@ public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
 
     Collection<MembershipType> membershipTypes = super.findMembershipTypes();
     for (MembershipType membershipType : membershipTypes)
-      membershipTypeCache.put(membershipType.getName(), membershipType);
+      cacheMembershipType(membershipType);
 
     return membershipTypes;
   }
@@ -77,19 +85,32 @@ public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
    * {@inheritDoc}
    */
   public MembershipType removeMembershipType(String name, boolean broadcast) throws Exception {
-    MembershipType membershipType = super.removeMembershipType(name, broadcast);
-    if (membershipType != null) {
+    MembershipType membershipType = null;
+    disableCacheInThread.set(true);
+    try {
+      membershipType = super.removeMembershipType(name, broadcast);
       membershipTypeCache.remove(name);
 
-      List<? extends Membership> memberships = membershipCache.getCachedObjects();
-      for (Membership membership : memberships) {
-        if (membership.getMembershipType().equals(name)) {
-          membershipCache.remove(membership.getId());
-          membershipCache.remove(new MembershipCacheKey(membership));
+      if (membershipType != null) {
+
+        List<? extends Membership> memberships = membershipCache.getCachedObjects();
+        for (Membership membership : memberships) {
+          if (membership.getMembershipType().equals(name)) {
+            membershipCache.remove(membership.getId());
+            membershipCache.remove(new MembershipCacheKey(membership));
+          }
         }
       }
+    } finally {
+      disableCacheInThread.set(false);
     }
+    return membershipType;
+  }
 
+  @Override
+  public MembershipType createMembershipType(MembershipType mt, boolean broadcast) throws Exception {
+    MembershipType membershipType = super.createMembershipType(mt, broadcast);
+    cacheMembershipType(membershipType);
     return membershipType;
   }
 
@@ -98,8 +119,17 @@ public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
    */
   public MembershipType saveMembershipType(MembershipType mt, boolean broadcast) throws Exception {
     MembershipType membershipType = super.saveMembershipType(mt, broadcast);
-    membershipTypeCache.put(membershipType.getName(), membershipType);
+    cacheMembershipType(membershipType);
 
     return membershipType;
   }
+
+  public void clearCache() {
+    membershipTypeCache.clearCache();
+  }
+
+  private void cacheMembershipType(MembershipType membershipType) {
+    membershipTypeCache.put(membershipType.getName(), ((MembershipTypeImpl) membershipType).clone());
+  }
+
 }

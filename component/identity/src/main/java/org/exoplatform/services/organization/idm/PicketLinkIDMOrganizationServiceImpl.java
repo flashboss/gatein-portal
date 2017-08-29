@@ -68,46 +68,32 @@ public class PicketLinkIDMOrganizationServiceImpl extends BaseOrganizationServic
 
     public PicketLinkIDMOrganizationServiceImpl(InitParams params, PicketLinkIDMService idmService,
                                                   JTAUserTransactionLifecycleService jtaTransactionLifecycleService, OrganizationCacheHandler organizationCacheHandler) throws Exception {
-        if (params != null) {
-            // Options
-            ObjectParameter configurationParam = params.getObjectParam(CONFIGURATION_OPTION);
+      this.idmService_ = (PicketLinkIDMServiceImpl) idmService;
+      this.jtaTransactionLifecycleService = jtaTransactionLifecycleService;
+
+      if(organizationCacheHandler != null && (this.configuration == null || this.configuration.isUseEntityCache())) {
+        groupDAO_ = new CacheableGroupHandlerImpl(organizationCacheHandler, this, idmService);
+        userDAO_ = new CacheableUserHandlerImpl(organizationCacheHandler, this, idmService);
+        userProfileDAO_ = new CacheableUserProfileHandlerImpl(organizationCacheHandler, this, idmService);
+        membershipDAO_ = new CacheableMembershipHandlerImpl(organizationCacheHandler, this, idmService);
+        membershipTypeDAO_ = new CacheableMembershipTypeHandlerImpl(organizationCacheHandler, this, idmService);
+      } else {
+        groupDAO_ = new GroupDAOImpl(this, idmService);
+        userDAO_ = new UserDAOImpl(this, idmService);
+        userProfileDAO_ = new UserProfileDAOImpl(this, idmService);
+        membershipDAO_ = new MembershipDAOImpl(this, idmService);
+        membershipTypeDAO_ = new MembershipTypeDAOImpl(this, idmService);
+      }
+
+      if (params != null) {
+        // Options
+        ObjectParameter configurationParam = params.getObjectParam(CONFIGURATION_OPTION);
   
-            if (configurationParam != null) {
-                this.configuration = (Config) configurationParam.getObject();
-            }
-            IdentityConfigurationMetaData configMD =((PicketLinkIDMServiceImpl) idmService).getConfigMD();
-            List<IdentityStoreConfigurationMetaData>  identityStores = null;
-            if(configMD != null){
-                identityStores = configMD.getIdentityStores();
-            }
-            /*If you have DB only setup*/
-            if(identityStores != null && identityStores.size() > 1){
-                this.configuration.setCountPaginatedUsers(false);
-                this.configuration.setSkipPaginationInMembershipQuery(true);
-            }else{
-             /*If you have DB+LDAP setup*/
-                this.configuration.setCountPaginatedUsers(true);
-                this.configuration.setSkipPaginationInMembershipQuery(false);
-            }
+        if (configurationParam != null) {
+          this.configuration = (Config) configurationParam.getObject();
+          initConfiguration(params);
         }
-
-        if(organizationCacheHandler != null && (this.configuration == null || this.configuration.isUseEntityCache())) {
-          groupDAO_ = new CacheableGroupHandlerImpl(organizationCacheHandler, this, idmService);
-          userDAO_ = new CacheableUserHandlerImpl(organizationCacheHandler, this, idmService);
-          userProfileDAO_ = new CacheableUserProfileHandlerImpl(organizationCacheHandler, this, idmService);
-          membershipDAO_ = new CacheableMembershipHandlerImpl(organizationCacheHandler, this, idmService);
-          membershipTypeDAO_ = new CacheableMembershipTypeHandlerImpl(organizationCacheHandler, this, idmService);
-        } else {
-          groupDAO_ = new GroupDAOImpl(this, idmService);
-          userDAO_ = new UserDAOImpl(this, idmService);
-          userProfileDAO_ = new UserProfileDAOImpl(this, idmService);
-          membershipDAO_ = new MembershipDAOImpl(this, idmService);
-          membershipTypeDAO_ = new MembershipTypeDAOImpl(this, idmService);
-        }
-
-        idmService_ = (PicketLinkIDMServiceImpl) idmService;
-
-        this.jtaTransactionLifecycleService = jtaTransactionLifecycleService;
+      }
     }
 
     public PicketLinkIDMOrganizationServiceImpl(InitParams params, PicketLinkIDMService idmService,
@@ -262,4 +248,20 @@ public class PicketLinkIDMOrganizationServiceImpl extends BaseOrganizationServic
         this.configuration = configuration;
     }
 
+    private void initConfiguration(InitParams params) {
+      IdentityConfigurationMetaData configMD = ((PicketLinkIDMServiceImpl) this.idmService_).getConfigMD();
+      List<IdentityStoreConfigurationMetaData> identityStores = null;
+      if (configMD != null) {
+        identityStores = configMD.getIdentityStores();
+      }
+      /* If you have DB only setup */
+      if (identityStores != null && identityStores.size() > 1) {
+        this.configuration.setCountPaginatedUsers(false);
+        this.configuration.setSkipPaginationInMembershipQuery(true);
+      } else {
+        /* If you have DB+LDAP setup */
+        this.configuration.setCountPaginatedUsers(true);
+        this.configuration.setSkipPaginationInMembershipQuery(false);
+      }
+    }
 }
