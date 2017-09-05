@@ -71,6 +71,16 @@ public class PicketLinkIDMOrganizationServiceImpl extends BaseOrganizationServic
       this.idmService_ = (PicketLinkIDMServiceImpl) idmService;
       this.jtaTransactionLifecycleService = jtaTransactionLifecycleService;
 
+      if (params != null) {
+        // Options
+        ObjectParameter configurationParam = params.getObjectParam(CONFIGURATION_OPTION);
+  
+        if (configurationParam != null) {
+          this.configuration = (Config) configurationParam.getObject();
+          initConfiguration(params);
+        }
+      }
+
       if(organizationCacheHandler != null && (this.configuration == null || this.configuration.isUseEntityCache())) {
         groupDAO_ = new CacheableGroupHandlerImpl(organizationCacheHandler, this, idmService);
         userDAO_ = new CacheableUserHandlerImpl(organizationCacheHandler, this, idmService);
@@ -85,15 +95,6 @@ public class PicketLinkIDMOrganizationServiceImpl extends BaseOrganizationServic
         membershipTypeDAO_ = new MembershipTypeDAOImpl(this, idmService);
       }
 
-      if (params != null) {
-        // Options
-        ObjectParameter configurationParam = params.getObjectParam(CONFIGURATION_OPTION);
-  
-        if (configurationParam != null) {
-          this.configuration = (Config) configurationParam.getObject();
-          initConfiguration(params);
-        }
-      }
     }
 
     public PicketLinkIDMOrganizationServiceImpl(InitParams params, PicketLinkIDMService idmService,
