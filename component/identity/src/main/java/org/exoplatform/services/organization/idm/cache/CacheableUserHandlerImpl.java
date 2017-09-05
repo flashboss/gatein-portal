@@ -100,7 +100,9 @@ public class CacheableUserHandlerImpl extends UserDAOImpl {
    */
   public User setEnabled(String userName, boolean enabled, boolean broadcast) throws Exception {
     User result = super.setEnabled(userName, enabled, broadcast);
-    if (result != null) {
+    if (result == null) {
+      userCache.remove(userName);
+    } else {
       cacheUser(result);
     }
     return result;

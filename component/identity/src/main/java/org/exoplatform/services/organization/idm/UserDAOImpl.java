@@ -665,6 +665,10 @@ public class UserDAOImpl extends AbstractDAOImpl implements UserHandler {
             listener.postSetEnabled(user);
     }
 
+    public void persistUserInfo(User user, IdentitySession session, boolean isNew) throws Exception {
+      persistUserInfo(user, null, session, isNew);
+    }
+
     public void persistUserInfo(User user, org.picketlink.idm.api.User plIDMUser, IdentitySession session, boolean isNew) throws Exception {
         orgService.flush();
 
@@ -712,6 +716,9 @@ public class UserDAOImpl extends AbstractDAOImpl implements UserHandler {
                 attributes.add(new SimpleAttribute(USER_PASSWORD, user.getPassword()));
             } else {
                 try {
+                    if (plIDMUser == null) {
+                      plIDMUser = session.getPersistenceManager().findUser(user.getUserName());
+                    }
                     am.updatePassword(plIDMUser, user.getPassword());
                 } catch (Exception e) {
                     handleException("Cannot update password: " + user.getUserName() + "; ", e);
