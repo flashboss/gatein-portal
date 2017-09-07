@@ -25,9 +25,6 @@ package org.exoplatform.services.organization.idm;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.picketlink.idm.cache.APICacheProvider;
-import org.picketlink.idm.spi.cache.IdentityStoreCacheProvider;
-
 import org.exoplatform.management.annotations.Impact;
 import org.exoplatform.management.annotations.ImpactType;
 import org.exoplatform.management.annotations.Managed;
@@ -36,6 +33,8 @@ import org.exoplatform.management.annotations.ManagedName;
 import org.exoplatform.management.jmx.annotations.NameTemplate;
 import org.exoplatform.management.jmx.annotations.Property;
 import org.exoplatform.management.rest.annotations.RESTEndpoint;
+import org.picketlink.idm.cache.APICacheProvider;
+import org.picketlink.idm.spi.cache.IdentityStoreCacheProvider;
 
 /*
  * @author <a href="mailto:boleslaw.dawidowicz at redhat.com">Boleslaw Dawidowicz</a>

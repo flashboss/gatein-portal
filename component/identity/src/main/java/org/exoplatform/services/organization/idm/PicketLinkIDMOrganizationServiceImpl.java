@@ -81,7 +81,7 @@ public class PicketLinkIDMOrganizationServiceImpl extends BaseOrganizationServic
         }
       }
 
-      if(organizationCacheHandler != null && (this.configuration == null || this.configuration.isUseEntityCache())) {
+      if(organizationCacheHandler != null && (this.configuration == null || this.configuration.isUseCache())) {
         groupDAO_ = new CacheableGroupHandlerImpl(organizationCacheHandler, this, idmService, this.configuration.isCountPaginatedUsers());
         userDAO_ = new CacheableUserHandlerImpl(organizationCacheHandler, this, idmService);
         userProfileDAO_ = new CacheableUserProfileHandlerImpl(organizationCacheHandler, this, idmService);
