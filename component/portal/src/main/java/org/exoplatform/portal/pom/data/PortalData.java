@@ -20,6 +20,7 @@ package org.exoplatform.portal.pom.data;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 
 /**
@@ -119,5 +120,29 @@ public class PortalData extends ModelData {
 
     public String getLabel() {
         return label;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PortalData)) return false;
+        if (!super.equals(o)) return false;
+        PortalData that = (PortalData) o;
+        return Objects.equals(key, that.key) &&
+                Objects.equals(locale, that.locale) &&
+                Objects.equals(accessPermissions, that.accessPermissions) &&
+                Objects.equals(editPermission, that.editPermission) &&
+                Objects.equals(properties, that.properties) &&
+                Objects.equals(skin, that.skin) &&
+                Objects.equals(portalLayout, that.portalLayout) &&
+                Objects.equals(label, that.label) &&
+                Objects.equals(description, that.description) &&
+                Objects.equals(redirects, that.redirects);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), key, locale, accessPermissions, editPermission,
+                properties, skin, portalLayout, label, description, redirects);
     }
 }

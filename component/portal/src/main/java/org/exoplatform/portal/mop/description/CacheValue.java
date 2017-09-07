@@ -20,6 +20,7 @@
 package org.exoplatform.portal.mop.description;
 
 import java.io.Serializable;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.exoplatform.portal.mop.Described;
@@ -59,5 +60,20 @@ public class CacheValue implements Serializable {
         this.origin = null;
         this.serial = SEQUENCE.incrementAndGet();
         this.state = state;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof CacheValue)) return false;
+        CacheValue that = (CacheValue) o;
+        return serial == that.serial &&
+                Objects.equals(origin, that.origin) &&
+                Objects.equals(state, that.state);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(origin, serial, state);
     }
 }

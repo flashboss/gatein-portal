@@ -20,11 +20,7 @@
 package org.exoplatform.portal.mop.navigation;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 import org.exoplatform.portal.mop.Described;
 import org.exoplatform.portal.mop.Utils;
@@ -209,6 +205,23 @@ class NodeData implements Serializable {
 
     public String getName() {
         return name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof NodeData)) return false;
+        NodeData nodeData = (NodeData) o;
+        return Objects.equals(parentId, nodeData.parentId) &&
+                Objects.equals(id, nodeData.id) &&
+                Objects.equals(name, nodeData.name) &&
+                Objects.equals(state, nodeData.state) &&
+                Arrays.equals(children, nodeData.children);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(parentId, id, name, state, children);
     }
 
     public NodeState getState() {

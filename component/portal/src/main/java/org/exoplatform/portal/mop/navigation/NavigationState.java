@@ -20,6 +20,7 @@
 package org.exoplatform.portal.mop.navigation;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 
 /**
@@ -44,5 +45,18 @@ public class NavigationState implements Serializable {
      */
     public Integer getPriority() {
         return priority;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof NavigationState)) return false;
+        NavigationState that = (NavigationState) o;
+        return Objects.equals(priority, that.priority);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(priority);
     }
 }
