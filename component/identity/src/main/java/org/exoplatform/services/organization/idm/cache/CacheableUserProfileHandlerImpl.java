@@ -18,7 +18,6 @@ package org.exoplatform.services.organization.idm.cache;
 
 import java.util.Collection;
 
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.services.cache.ExoCache;
@@ -51,19 +50,22 @@ public class CacheableUserProfileHandlerImpl extends UserProfileDAOImpl {
     UserProfile userProfile = null;
     if (disableCacheInThread.get() == null || !disableCacheInThread.get()) {
       userProfile = (UserProfile) userProfileCache.get(userName);
-      userProfile = (userProfile == null || userProfile == NULL_OBJECT
-          || StringUtils.isBlank(userProfile.getUserName())) ? null : userProfile;
-      if (userProfile != null)
-        return userProfile == NULL_OBJECT ? null : ((UserProfileImpl) userProfile).clone();
+      if (userProfile == null) {
+        userProfile = NULL_OBJECT;
+        userProfileCache.put(userName, userProfile);
+      }
     }
 
-    userProfile = super.findUserProfileByName(userName);
     if (userProfile == null) {
-      userProfile = NULL_OBJECT;
-    } else {
-      userProfile.setUserName(userName);
+      userProfile = super.findUserProfileByName(userName);
+      if (userProfile == null) {
+        userProfile = NULL_OBJECT;
+        userProfileCache.put(userName, userProfile);
+      } else {
+        userProfile.setUserName(userName);
+        cacheUserProfile(userProfile);
+      }
     }
-    cacheUserProfile(userProfile);
 
     return userProfile == NULL_OBJECT ? null : ((UserProfileImpl) userProfile).clone();
   }

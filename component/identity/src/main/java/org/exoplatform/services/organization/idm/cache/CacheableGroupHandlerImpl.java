@@ -23,7 +23,9 @@ import java.util.List;
 import org.apache.commons.lang.SerializationUtils;
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.services.cache.CachedObjectSelector;
 import org.exoplatform.services.cache.ExoCache;
+import org.exoplatform.services.cache.ObjectCacheInfo;
 import org.exoplatform.services.organization.Group;
 import org.exoplatform.services.organization.Membership;
 import org.exoplatform.services.organization.cache.MembershipCacheKey;
@@ -36,19 +38,23 @@ import org.exoplatform.services.organization.impl.GroupImpl;
 
 public class CacheableGroupHandlerImpl extends GroupDAOImpl {
 
-  private final ExoCache<String, Group>            groupCache;
+  private final ExoCache<String, Object>             groupCache;
 
-  private final ExoCache<Serializable, Membership> membershipCache;
+  private final ExoCache<MembershipCacheKey, Object> membershipCache;
 
-  private final ThreadLocal<Boolean>               disableCacheInThread = new ThreadLocal<>();
+  private final ThreadLocal<Boolean>                 disableCacheInThread = new ThreadLocal<>();
+
+  private boolean                                    useCacheList;
 
   @SuppressWarnings("unchecked")
   public CacheableGroupHandlerImpl(OrganizationCacheHandler organizationCacheHandler,
                                    PicketLinkIDMOrganizationServiceImpl orgService,
-                                   PicketLinkIDMService service) {
+                                   PicketLinkIDMService service,
+                                   boolean useCacheList) {
     super(orgService, service);
     this.groupCache = organizationCacheHandler.getGroupCache();
     this.membershipCache = organizationCacheHandler.getMembershipCache();
+    this.useCacheList = useCacheList;
   }
 
   /**
@@ -57,6 +63,9 @@ public class CacheableGroupHandlerImpl extends GroupDAOImpl {
   @Override
   public void addChild(Group parent, Group child, boolean broadcast) throws Exception {
     super.addChild(parent, child, broadcast);
+    if (useCacheList && parent != null) {
+      groupCache.remove(computeChildrenKey(parent));
+    }
     cacheGroup(child);
   }
 
@@ -106,12 +115,19 @@ public class CacheableGroupHandlerImpl extends GroupDAOImpl {
   /**
    * {@inheritDoc}
    */
+  @SuppressWarnings("unchecked")
   public Collection<Group> findGroups(Group parent) throws Exception {
-    Collection<Group> groups = super.findGroups(parent);
-    for (Group group : groups) {
-      cacheGroup(group);
+    Collection<Group> groups = null;
+    if (useCacheList && (disableCacheInThread.get() == null || !disableCacheInThread.get())) {
+      String childrenCacheKey = computeChildrenKey(parent);
+      groups = (Collection<Group>) groupCache.get(childrenCacheKey);
     }
-
+    if (groups == null) {
+      groups = super.findGroups(parent);
+      for (Group group : groups) {
+        cacheGroup(group);
+      }
+    }
     return groups;
   }
 
@@ -148,27 +164,35 @@ public class CacheableGroupHandlerImpl extends GroupDAOImpl {
       gr = super.removeGroup(group, broadcast);
 
       String groupId = getGroupId(group);
-      groupCache.remove(groupId);
 
-      // Delete child groups from cache
-      List<? extends Group> cachedGroups = groupCache.getCachedObjects();
-      for (Group cachedGroup : cachedGroups) {
-        if(cachedGroup.getId().startsWith(groupId + "/")) {
-          groupCache.remove(cachedGroup.getId());
-        }
-      }
-
-      List<? extends Membership> memberships = membershipCache.getCachedObjects();
-      for (Membership membership : memberships) {
-        if (membership.getGroupId().equals(groupId)) {
-          membershipCache.remove(membership.getId());
-          membershipCache.remove(new MembershipCacheKey(membership));
-        }
-      }
+      // Delete related cache entries
+      groupCache.select(new ClearGroupCacheByGroupIdSelector(groupId, group.getParentId(), useCacheList));
+      membershipCache.select(new ClearMembershipCacheByGroupIdSelector(groupId));
     } finally {
       disableCacheInThread.set(false);
     }
     return gr;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected String getGroupId(org.picketlink.idm.api.Group jbidGroup,
+                              List<org.picketlink.idm.api.Group> processed) throws Exception {
+    String cacheKey = String.valueOf(jbidGroup.hashCode());
+
+    String groupId = null;
+    if (disableCacheInThread.get() == null || !disableCacheInThread.get()) {
+      groupId = (String) groupCache.get(cacheKey);
+    }
+    if (groupId == null) {
+      groupId = super.getGroupId(jbidGroup, processed);
+      if (groupId != null) {
+        groupCache.put(cacheKey, groupId);
+      }
+    }
+    return groupId;
   }
 
   /**
@@ -183,13 +207,6 @@ public class CacheableGroupHandlerImpl extends GroupDAOImpl {
     groupCache.clearCache();
   }
 
-  private String getGroupId(Group group) {
-    if (StringUtils.isNotBlank(group.getId())) {
-      return group.getId();
-    }
-    return (StringUtils.isBlank(group.getParentId()) ? "" : group.getParentId()) + "/" + group.getGroupName();
-  }
-
   private void cacheGroup(Group group) {
     String groupId = group.getId();
     if (StringUtils.isBlank(groupId)) {
@@ -201,5 +218,88 @@ public class CacheableGroupHandlerImpl extends GroupDAOImpl {
       }
     }
     groupCache.put(groupId, (Group) SerializationUtils.clone((Serializable) group));
+  }
+
+  private static final String computeChildrenKey(Group parent) {
+    return computeChildrenKey(getGroupId(parent));
+  }
+
+  private static final String computeChildrenKey(String parentId) {
+    return "children_" + parentId;
+  }
+
+  private static final String getGroupId(Group group) {
+    if (group == null) {
+      return null;
+    }
+    if (StringUtils.isNotBlank(group.getId())) {
+      return group.getId();
+    }
+    return (StringUtils.isBlank(group.getParentId()) ? "" : group.getParentId()) + "/" + group.getGroupName();
+  }
+
+  public static final class ClearGroupCacheByGroupIdSelector implements CachedObjectSelector<String, Object> {
+    private String groupId;
+
+    private String childrenKey;
+
+    private String parentCachedChildrenKey;
+
+    public ClearGroupCacheByGroupIdSelector(String groupId, String parentId, boolean clearCachedChildrenList) {
+      this.groupId = groupId;
+      if (clearCachedChildrenList) {
+        this.childrenKey = computeChildrenKey(groupId);
+        if (StringUtils.isNotBlank(parentId)) {
+          this.parentCachedChildrenKey = computeChildrenKey(parentId);
+        }
+      }
+    }
+
+    @Override
+    public void onSelect(ExoCache<? extends String, ? extends Object> cache,
+                         String key,
+                         ObjectCacheInfo<? extends Object> ocinfo) throws Exception {
+      cache.remove(key);
+    }
+
+    @Override
+    public boolean select(String key, ObjectCacheInfo<? extends Object> ocinfo) {
+      if (key.equals(groupId) || key.startsWith(groupId + "/")
+          || (StringUtils.isNotBlank(childrenKey) && (key.equals(childrenKey) || key.startsWith(childrenKey + "/")))
+          || (StringUtils.isNotBlank(parentCachedChildrenKey) && (key.equals(parentCachedChildrenKey)))) {
+        return true;
+      }
+      return false;
+    }
+  }
+
+  public static final class ClearMembershipCacheByGroupIdSelector implements CachedObjectSelector<MembershipCacheKey, Object> {
+    private String groupId;
+
+    public ClearMembershipCacheByGroupIdSelector(String groupId) {
+      this.groupId = groupId;
+    }
+
+    @Override
+    public void onSelect(ExoCache<? extends MembershipCacheKey, ? extends Object> cache,
+                         MembershipCacheKey key,
+                         ObjectCacheInfo<? extends Object> ocinfo) throws Exception {
+      cache.remove(key);
+    }
+
+    @Override
+    public boolean select(MembershipCacheKey key, ObjectCacheInfo<? extends Object> ocinfo) {
+      Object obj = ocinfo.get();
+      if (obj instanceof Membership) {
+        Membership cachedMembership = (Membership) ocinfo.get();
+        if (cachedMembership.getGroupId().equals(groupId)) {
+          return true;
+        }
+      } else if (obj instanceof Collection) {
+        // Delete all cached user's memberships when deleting a group
+        return true;
+      }
+      return false;
+    }
   }
 }

@@ -34,13 +34,13 @@ import org.exoplatform.services.organization.idm.UserDAOImpl;
 
 public class CacheableUserHandlerImpl extends UserDAOImpl {
 
-  private final ExoCache<String, User>             userCache;
+  private final ExoCache<String, User>               userCache;
 
-  private final ExoCache<String, UserProfile>      userProfileCache;
+  private final ExoCache<String, UserProfile>        userProfileCache;
 
-  private final ExoCache<Serializable, Membership> membershipCache;
+  private final ExoCache<MembershipCacheKey, Object> membershipCache;
 
-  private final ThreadLocal<Boolean>               disableCacheInThread = new ThreadLocal<>();
+  private final ThreadLocal<Boolean>                 disableCacheInThread = new ThreadLocal<>();
 
   @SuppressWarnings("unchecked")
   public CacheableUserHandlerImpl(OrganizationCacheHandler organizationCacheHandler,
@@ -65,11 +65,14 @@ public class CacheableUserHandlerImpl extends UserDAOImpl {
       userProfileCache.remove(userName);
 
       if (user != null) {
-        List<? extends Membership> memberships = membershipCache.getCachedObjects();
-        for (Membership membership : memberships) {
-          if (membership.getUserName().equals(userName)) {
-            membershipCache.remove(membership.getId());
-            membershipCache.remove(new MembershipCacheKey(membership));
+        membershipCache.remove(new MembershipCacheKey(userName, null, null));
+        List<?> objects = membershipCache.getCachedObjects();
+        for (Object obj : objects) {
+          if (obj instanceof Membership) {
+            Membership membership = (Membership) obj;
+            if (membership.getUserName().equals(userName)) {
+              membershipCache.remove(new MembershipCacheKey(membership));
+            }
           }
         }
       }

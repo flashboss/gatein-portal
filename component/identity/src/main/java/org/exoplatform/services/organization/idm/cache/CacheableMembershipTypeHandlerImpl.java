@@ -16,13 +16,11 @@
  */
 package org.exoplatform.services.organization.idm.cache;
 
-import java.io.Serializable;
 import java.util.Collection;
-import java.util.List;
 
-import org.apache.commons.lang.SerializationUtils;
-
+import org.exoplatform.services.cache.CachedObjectSelector;
 import org.exoplatform.services.cache.ExoCache;
+import org.exoplatform.services.cache.ObjectCacheInfo;
 import org.exoplatform.services.organization.Membership;
 import org.exoplatform.services.organization.MembershipType;
 import org.exoplatform.services.organization.cache.MembershipCacheKey;
@@ -34,11 +32,11 @@ import org.exoplatform.services.organization.impl.MembershipTypeImpl;
 
 public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
 
-  private final ExoCache<String, MembershipType>   membershipTypeCache;
+  private final ExoCache<String, MembershipType>     membershipTypeCache;
 
-  private final ExoCache<Serializable, Membership> membershipCache;
+  private final ExoCache<MembershipCacheKey, Object> membershipCache;
 
-  private final ThreadLocal<Boolean>               disableCacheInThread = new ThreadLocal<>();
+  private final ThreadLocal<Boolean>                 disableCacheInThread = new ThreadLocal<>();
 
   @SuppressWarnings("unchecked")
   public CacheableMembershipTypeHandlerImpl(OrganizationCacheHandler organizationCacheHandler,
@@ -66,7 +64,7 @@ public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
       cacheMembershipType(membershipType);
     }
 
-    return membershipType == null ? membershipType :((MembershipTypeImpl) membershipType).clone();
+    return membershipType == null ? membershipType : ((MembershipTypeImpl) membershipType).clone();
   }
 
   /**
@@ -92,14 +90,7 @@ public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
       membershipTypeCache.remove(name);
 
       if (membershipType != null) {
-
-        List<? extends Membership> memberships = membershipCache.getCachedObjects();
-        for (Membership membership : memberships) {
-          if (membership.getMembershipType().equals(name)) {
-            membershipCache.remove(membership.getId());
-            membershipCache.remove(new MembershipCacheKey(membership));
-          }
-        }
+        membershipCache.select(new ClearMembershipCacheByMembershipTypeSelector(name));
       }
     } finally {
       disableCacheInThread.set(false);
@@ -132,4 +123,34 @@ public class CacheableMembershipTypeHandlerImpl extends MembershipTypeDAOImpl {
     membershipTypeCache.put(membershipType.getName(), ((MembershipTypeImpl) membershipType).clone());
   }
 
+  public static final class ClearMembershipCacheByMembershipTypeSelector
+      implements CachedObjectSelector<MembershipCacheKey, Object> {
+    private String membershipType;
+
+    public ClearMembershipCacheByMembershipTypeSelector(String membershipType) {
+      this.membershipType = membershipType;
+    }
+
+    @Override
+    public void onSelect(ExoCache<? extends MembershipCacheKey, ? extends Object> cache,
+                         MembershipCacheKey key,
+                         ObjectCacheInfo<? extends Object> ocinfo) throws Exception {
+      cache.remove(key);
+    }
+
+    @Override
+    public boolean select(MembershipCacheKey key, ObjectCacheInfo<? extends Object> ocinfo) {
+      Object obj = ocinfo.get();
+      if (obj instanceof Membership) {
+        Membership cachedMembership = (Membership) ocinfo.get();
+        if (cachedMembership.getMembershipType().equals(membershipType)) {
+          return true;
+        }
+      } else if (obj instanceof Collection) {
+        // Delete all cached user's memberships when deleting a membershipType
+        return true;
+      }
+      return false;
+    }
+  }
 }
