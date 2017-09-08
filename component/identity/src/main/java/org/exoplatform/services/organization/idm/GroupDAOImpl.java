@@ -96,7 +96,7 @@ public class GroupDAOImpl extends AbstractDAOImpl implements GroupHandler {
                 throw e;
             }
             if(parentGroup == null) {
-                throw new Exception("Parent group doesn not exist");
+                throw new Exception("Parent group does not exist");
             }
 
             ((ExtGroup) child).setId(parent.getId() + "/" + child.getGroupName());
