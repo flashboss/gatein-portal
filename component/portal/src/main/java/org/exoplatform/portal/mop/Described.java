@@ -116,16 +116,24 @@ public abstract class Described {
             return description;
         }
 
+
         @Override
-        public boolean equals(Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj instanceof State) {
-                State that = (State) obj;
-                return Safe.equals(name, that.name) && Safe.equals(description, that.description);
-            }
-            return false;
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof State)) return false;
+
+            State state = (State) o;
+
+            if (name != null ? !name.equals(state.name) : state.name != null) return false;
+            return description != null ? description.equals(state.description) : state.description == null;
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = name != null ? name.hashCode() : 0;
+            result = 31 * result + (description != null ? description.hashCode() : 0);
+            return result;
         }
 
         @Override

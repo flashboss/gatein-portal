@@ -207,25 +207,29 @@ class NodeData implements Serializable {
         return name;
     }
 
+    public NodeState getState() {
+        return state;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof NodeData)) return false;
+
         NodeData nodeData = (NodeData) o;
-        return Objects.equals(parentId, nodeData.parentId) &&
-                Objects.equals(id, nodeData.id) &&
-                Objects.equals(name, nodeData.name) &&
-                Objects.equals(state, nodeData.state) &&
-                Arrays.equals(children, nodeData.children);
+
+        if (parentId != null ? !parentId.equals(nodeData.parentId) : nodeData.parentId != null) return false;
+        if (id != null ? !id.equals(nodeData.id) : nodeData.id != null) return false;
+        return name != null ? name.equals(nodeData.name) : nodeData.name == null;
+
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(parentId, id, name, state, children);
-    }
-
-    public NodeState getState() {
-        return state;
+        int result = parentId != null ? parentId.hashCode() : 0;
+        result = 31 * result + (id != null ? id.hashCode() : 0);
+        result = 31 * result + (name != null ? name.hashCode() : 0);
+        return result;
     }
 
     @Override

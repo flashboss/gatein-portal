@@ -54,14 +54,18 @@ class PageData implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof PageData)) return false;
+
         PageData pageData = (PageData) o;
-        return Objects.equals(key, pageData.key) &&
-                Objects.equals(id, pageData.id) &&
-                Objects.equals(state, pageData.state);
+
+        if (key != null ? !key.equals(pageData.key) : pageData.key != null) return false;
+        return id != null ? id.equals(pageData.id) : pageData.id == null;
+
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(key, id, state);
+        int result = key != null ? key.hashCode() : 0;
+        result = 31 * result + (id != null ? id.hashCode() : 0);
+        return result;
     }
 }

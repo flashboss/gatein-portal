@@ -66,14 +66,18 @@ public class CacheValue implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof CacheValue)) return false;
+
         CacheValue that = (CacheValue) o;
-        return serial == that.serial &&
-                Objects.equals(origin, that.origin) &&
-                Objects.equals(state, that.state);
+
+        if (serial != that.serial) return false;
+        return origin != null ? origin.equals(that.origin) : that.origin == null;
+
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(origin, serial, state);
+        int result = origin != null ? origin.hashCode() : 0;
+        result = 31 * result + (int) (serial ^ (serial >>> 32));
+        return result;
     }
 }

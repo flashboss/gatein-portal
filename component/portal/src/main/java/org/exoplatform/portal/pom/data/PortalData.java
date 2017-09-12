@@ -127,22 +127,19 @@ public class PortalData extends ModelData {
         if (this == o) return true;
         if (!(o instanceof PortalData)) return false;
         if (!super.equals(o)) return false;
+
         PortalData that = (PortalData) o;
-        return Objects.equals(key, that.key) &&
-                Objects.equals(locale, that.locale) &&
-                Objects.equals(accessPermissions, that.accessPermissions) &&
-                Objects.equals(editPermission, that.editPermission) &&
-                Objects.equals(properties, that.properties) &&
-                Objects.equals(skin, that.skin) &&
-                Objects.equals(portalLayout, that.portalLayout) &&
-                Objects.equals(label, that.label) &&
-                Objects.equals(description, that.description) &&
-                Objects.equals(redirects, that.redirects);
+
+        if (key != null ? !key.equals(that.key) : that.key != null) return false;
+        return locale != null ? locale.equals(that.locale) : that.locale == null;
+
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), key, locale, accessPermissions, editPermission,
-                properties, skin, portalLayout, label, description, redirects);
+        int result = super.hashCode();
+        result = 31 * result + (key != null ? key.hashCode() : 0);
+        result = 31 * result + (locale != null ? locale.hashCode() : 0);
+        return result;
     }
 }

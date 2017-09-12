@@ -79,14 +79,18 @@ public class NavigationData implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof NavigationData)) return false;
+
         NavigationData that = (NavigationData) o;
-        return Objects.equals(key, that.key) &&
-                Objects.equals(state, that.state) &&
-                Objects.equals(rootId, that.rootId);
+
+        if (key != null ? !key.equals(that.key) : that.key != null) return false;
+        return rootId != null ? rootId.equals(that.rootId) : that.rootId == null;
+
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(key, state, rootId);
+        int result = key != null ? key.hashCode() : 0;
+        result = 31 * result + (rootId != null ? rootId.hashCode() : 0);
+        return result;
     }
 }

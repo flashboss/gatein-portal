@@ -51,12 +51,15 @@ public class NavigationState implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof NavigationState)) return false;
+
         NavigationState that = (NavigationState) o;
-        return Objects.equals(priority, that.priority);
+
+        return priority != null ? priority.equals(that.priority) : that.priority == null;
+
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(priority);
+        return priority != null ? priority.hashCode() : 0;
     }
 }
