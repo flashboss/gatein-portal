@@ -28,9 +28,19 @@ import org.exoplatform.services.organization.idm.PicketLinkIDMService;
 import org.exoplatform.services.organization.idm.UserProfileDAOImpl;
 import org.exoplatform.services.organization.impl.UserProfileImpl;
 
+@SuppressWarnings("deprecation")
 public class CacheableUserProfileHandlerImpl extends UserProfileDAOImpl {
   private UserProfile                         NULL_OBJECT          = createUserProfileInstance();
 
+  /**
+   * Used to avoid this problem 
+   * 1/ Delete from cache
+   * 2/ super.delete
+   * 2.1 trigger preDelete listeners: the listener.findEntity => cache is populated again
+   * 2.2 delete from Store
+   * 2.3 trigger postDelete listeners => Error: when
+   *    listener a listener calls findUserById, the entity is returned from cache
+   */
   private final ThreadLocal<Boolean>          disableCacheInThread = new ThreadLocal<>();
 
   private final ExoCache<String, UserProfile> userProfileCache;
