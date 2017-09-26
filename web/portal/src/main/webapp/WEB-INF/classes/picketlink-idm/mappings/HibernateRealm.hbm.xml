@@ -17,7 +17,7 @@
               lazy="false">
       <column name="NAME"
               not-null="true"
-              unique-key="id"/>
+              unique-key="IDM_IDX_JIBID_REALM"/>
     </property>
     <map name="properties"
          table="jbid_real_props"

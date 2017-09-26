@@ -51,7 +51,7 @@
                  lazy="false">
       <column name="IDENTITY_TYPE"
               not-null="true"
-              unique-key="id"/>
+              unique-key="IDM_IDX_JIBID_IO"/>
     </many-to-one>
     <property name="name"
               type="java.lang.String"
@@ -59,7 +59,7 @@
               lazy="false">
       <column name="NAME"
               not-null="true"
-              unique-key="id"/>
+              unique-key="IDM_IDX_JIBID_IO"/>
     </property>
     <map name="properties"
          table="jbid_io_props"
@@ -80,7 +80,7 @@
                  fetch="select">
       <column name="REALM"
               not-null="true"
-              unique-key="id"/>
+              unique-key="IDM_IDX_JIBID_IO"/>
     </many-to-one>
     <set name="toRelationships"
          inverse="true"

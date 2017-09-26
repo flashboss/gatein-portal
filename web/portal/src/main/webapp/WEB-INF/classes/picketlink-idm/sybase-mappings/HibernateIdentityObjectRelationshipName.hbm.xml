@@ -18,7 +18,7 @@
               lazy="false">
       <column name="NAME"
               not-null="true"
-              unique-key="id"/>
+              unique-key="IDM_IDX_JIBID_IO_REL_NAME"/>
     </property>
     <map name="properties"
          table="jbid_io_rel_name_props"
@@ -40,7 +40,7 @@
                  lazy="proxy">
       <column name="REALM"
               not-null="true"
-              unique-key="id"/>
+              unique-key="IDM_IDX_JIBID_IO_REL_NAME"/>
     </many-to-one>
 
   </class>

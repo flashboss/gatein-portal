@@ -15,14 +15,14 @@
                  class="org.picketlink.idm.impl.model.hibernate.HibernateIdentityObject"
                  access="field"
                  fetch="join">
-      <column name="IDENTITY_OBJECT_ID" not-null="true" unique-key="id"/>
+      <column name="IDENTITY_OBJECT_ID" not-null="true" unique-key="IDM_IDX_JIBID_IO_ATTR"/>
     </many-to-one>
     <property name="name"
               type="java.lang.String"
               access="property"
               lazy="false">
       <column name="NAME"
-              unique-key="id"/>
+              unique-key="IDM_IDX_JIBID_IO_ATTR"/>
     </property>
     <property name="type"
               type="java.lang.String"
